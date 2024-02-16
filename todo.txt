@@ -1,9 +1,4 @@
-1.PacketComposer 클래스 만들기 v
-2.EPOLLET 이벤트 처리 v
-3.ClientInfo 깊은복사 x
-4.exception 처리 추가하기(clientDictionary 관련)
-5.TCPSend 함수 제작 v
-6.EPOLLOUT 이벤트 처리 v
-
-일단 서버의 TCP 통신부터 제작하고 UDP는 나중에 하자 v
-클라이언트 TCP 통신을 제작해서 테스트 해보자 v
+1. onfirstconnect 함수 제작(clientID 전송)
+2. handledefaulttaskQ 함수 제작
+3. servercpp 228 줄에서 taskq에 defaulttaskq 저장
+4. client side udp 통신 제작

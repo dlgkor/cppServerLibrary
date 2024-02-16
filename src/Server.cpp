@@ -6,8 +6,8 @@ core::Server::Server(core::SafeQueue<core::Packet*>* TCPTaskQ, core::SafeQueue<c
 
     epollfd = epoll_create(100);
 
-    defaultTCPTaskQ = TCPTaskQ;
-    defaultUDPTaskQ = UDPTaskQ;
+    userTCPTaskQ = TCPTaskQ;
+    userUDPTaskQ = UDPTaskQ;
 
     tcpLoopThread = 0;
     tcpSendThread = 0;
@@ -24,50 +24,59 @@ int core::Server::BindTCP(std::string serverIP, int serverPORT){
     //TCPserverAdress.sin_addr.s_addr = htonl(INADDR_ANY);
     
     if(inet_pton(AF_INET, serverIP.c_str(), &(TCPserverAdress.sin_addr)) < 1){
-        std::cerr<<"Invalid IP adress "<<serverIP<<std::endl;
+        std::cerr<<"[TCP] Invalid IP adress "<<serverIP<<std::endl;
         return 0;
     }
 
     TCPserverAdress.sin_port = htons(serverPORT);
 
     if(bind(tcpSocket, reinterpret_cast<sockaddr*>(&TCPserverAdress), sizeof(TCPserverAdress)) < 0){
-        std::cerr<<"Error binding TCP socket\n";
+        std::cerr<<"[TCP] Error binding socket\n";
         return 0;
     }
 
-    std::cout<<"TCP socket is bined to "<<serverIP<<":"<<serverPORT<<std::endl;
+    std::cout<<"[TCP] socket is bined to "<<serverIP<<":"<<serverPORT<<std::endl;
 
     return 1;
 }
 
 int core::Server::BindUDP(std::string serverIP, int serverPORT){
+    //udp is not binded
+    
     std::memset(&UDPserverAdress, 0, sizeof(UDPserverAdress));
     UDPserverAdress.sin_family = AF_INET;
 
     if(inet_pton(AF_INET, serverIP.c_str(), &(UDPserverAdress.sin_addr)) < 1){
-        std::cerr<<"Invalid IP adress\n";
+        std::cerr<<"[UDP] Invalid IP adress\n";
         return 0;
     }
 
     UDPserverAdress.sin_port = htons(serverPORT);
 
     if(bind(udpSocket, reinterpret_cast<sockaddr*>(&UDPserverAdress), sizeof(UDPserverAdress)) < 0){
-        std::cerr<<"Error binding UDP socket\n";
+        std::cerr<<"[UDP] Error binding socket\n";
         return 0;
     }
 
-    std::cout<<"UDP socket is bined to "<<serverIP<<":"<<serverPORT<<std::endl;
+    std::cout<<"[UDP] socket is bined to "<<serverIP<<":"<<serverPORT<<std::endl;
 
     return 1;
 }
 
+int core::Server::Bind(std::string serverIP, int serverPORT){
+    //Bind TCP and UDP Socket
+    BindTCP(serverIP,serverPORT);
+    BindUDP(serverIP,serverPORT);
+    //BindUDP(serverIP,9000);
+}
+
 int core::Server::Listen(){
     if(listen(tcpSocket, 10) == -1){
-        std::cerr<<"Error listening on socket\n";
+        std::cerr<<"[TCP] Error listening on socket\n";
         return 0;
     }
 
-    std::cout<<"TCP socket is listening\n";
+    std::cout<<"[TCP] socket is listening\n";
 
     return 1;
 }
@@ -80,22 +89,22 @@ void core::Server::TCPLoop(){
     ev.events = EPOLLIN;
     ev.data.fd = tcpSocket;
     if(epoll_ctl(epollfd, EPOLL_CTL_ADD, tcpSocket, &ev)==-1){
-        std::cerr<<"tcpSocket epoll_ctl error\n";
+        std::cerr<<"[TCP] Socket epoll_ctl error\n";
     }
 
-    LOG("TCP loop is enabled\n");
+    LOG("[TCP] loop is enabled\n");
 
     while (1)
     {
-        LOG("epoll wait start\n");
+        LOG("[TCP] epoll wait start\n");
         event_count = epoll_wait(epollfd, events, epoll_size, -1);
-        LOG("epoll wait over\n");
+        LOG("[TCP] epoll wait over\n");
         if(event_count == -1){
-            std::cerr<<"epoll wait error\n";
+            std::cerr<<"[TCP] epoll wait error\n";
             continue;
         }
         for(int i=0;i<event_count;i++){
-            LOG("Handling TCP Event\n");
+            LOG("[TCP] Handling Event\n");
             TCPEventHandler(events[i]);
         }
     }    
@@ -103,28 +112,28 @@ void core::Server::TCPLoop(){
 
 void core::Server::TCPEventHandler(epoll_event& event){
     if(event.data.fd == tcpSocket && event.events & EPOLLIN){
-        LOG("tcpSocket event occured\n");
+        LOG("[TCP] Socket event occured\n");
         TCPListenEvent(event);
     }
     else{
         if(event.events & EPOLLRDHUP){
             //recv가 0을 반환하는 경우도 상대방이 연결을 끊었다는 의미이므로 처리해야 한다
             //출처: https://stackoverflow.com/questions/6437879/how-do-i-use-epollhup
-            LOG("EPOLLRDHUP event occured\n");
+            LOG("[TCP] EPOLLRDHUP event occured\n");
             TCPCloseEvent(event);
             return; 
         }
         if(event.events & EPOLLIN || event.events & EPOLLET){
             if(event.events & EPOLLIN)
-                LOG("EPOLLIN event occured\n");
+                LOG("[TCP] EPOLLIN event occured\n");
             if(event.events & EPOLLET)
-                LOG("EPOLLET event occured\n");
+                LOG("[TCP] EPOLLET event occured\n");
 
             TCPLetEvent(event);
         }
 
         if(event.events & EPOLLOUT){
-            LOG("EPOLLOUT event occured\n");
+            LOG("[TCP] EPOLLOUT event occured\n");
             //exception 처리 추가하기
             TCPOutEvent(event); //pop sendque and write
         }
@@ -163,8 +172,8 @@ void core::Server::TCPSend(){
             uint16_t packetSize = _packet->Length();
 
             int sendN = send(it->second->tcpinfo.sockfd, packetBytes, packetSize, 0);
-            LOG_ENDL(it->second->tcpinfo.sockfd);
-            LOG_ENDL(packetSize);
+            LOG_VAR(it->second->tcpinfo.sockfd);
+            LOG_VAR(packetSize);
 
             if(sendN < 0){
                 if(errno == EWOULDBLOCK){
@@ -175,10 +184,10 @@ void core::Server::TCPSend(){
             }
             else{
                 if(sendN != packetSize)
-                    std::cerr<<"send size and packet size dismatch Error\n";
+                    std::cerr<<"[TCP] send size and packet size dismatch Error\n";
                 it->second->tcpinfo.sendque.Pop(_packet);
                 delete _packet;
-                LOG_ENDL("successfully send data to client");
+                LOG_ENDL("[TCP] successfully send data to client");
             }
 
             delete packetBytes;
@@ -192,7 +201,7 @@ void core::Server::SendTCPPacket(int clientid, core::Packet* _packet){
     //pthread_mutex_lock(&server_mtx);
     std::map<int, core::ClientInfo*>::iterator it = clientDictionary.find(clientid);
     if(it==clientDictionary.end()){
-        std::cerr<<"packet receiver connection is already closed\n";
+        std::cerr<<"[TCP] packet receiver connection is already closed\n";
         delete _packet;
         return;
     }
@@ -209,17 +218,18 @@ void core::Server::TCPListenEvent(epoll_event& event){
     socklen_t socksize = sizeof(sockaddr_in);
     int sockfd = accept4(tcpSocket, reinterpret_cast<sockaddr*>(&clientaddr), &socksize, SOCK_NONBLOCK);
     if(sockfd == -1){
-        std::cerr<<"Error Accepting TCP socket\n";
+        std::cerr<<"[TCP] Error Accepting socket\n";
         return;
     }
-    LOG("accepted fd ");
+    LOG("[TCP] accepted fd ");
     LOG_ENDL(sockfd);
 
     ClientInfo* clientinfo = new ClientInfo(); //deleted at TCPhup event 
 
     clientinfo->tcpinfo.sockfd = sockfd;
     clientinfo->tcpinfo.clientaddr = clientaddr;
-    clientinfo->tcpinfo.taskque = defaultTCPTaskQ;
+    clientinfo->tcpinfo.taskque = userTCPTaskQ;
+    clientinfo->udpinfo.taskque = userUDPTaskQ;
     clientDictionary.insert({sockfd, clientinfo});
 
     epoll_event ev;
@@ -231,16 +241,18 @@ void core::Server::TCPListenEvent(epoll_event& event){
     //clientinfo 정보가 담긴 첫 패킷을 받아야 clientlist에 등록되도록 만들까?
     
     if(epoll_ctl(epollfd, EPOLL_CTL_ADD, sockfd, &ev)==-1){
-        std::cerr<<"new client epoll_ctl error\n";
+        std::cerr<<"[TCP] new client epoll_ctl error\n";
         return;
     }
+
+    OnFirstConnect(sockfd);
 }
 
 void core::Server::TCPCloseEvent(epoll_event& event){
     //connection is closed
     //erase socket event
     //pthread_mutex_lock(&server_mtx);
-    LOG("TCPCloseEvent occured\n");
+    LOG("[TCP] CloseEvent occured\n");
     
     //sendque에 TCPClose 패킷을 넣고 처리해볼까?
 
@@ -285,16 +297,16 @@ void core::Server::TCPLetEvent(epoll_event& event){
             break;
         }
 
-        LOG("received data\n");
+        LOG("[TCP] received data\n");
         clientInfo->packetComposer.addClip(buffer, readN);
         while(1){
-            LOG("looping\n");
+            LOG("[TCP] looping\n");
             core::Packet* tempPacket = clientInfo->packetComposer.Compose();
             if(!tempPacket)
                 break;
 
             if(!clientInfo->tcpinfo.taskque){
-                std::cerr<<"None taskque error\n";
+                std::cerr<<"[TCP] None taskque error\n";
                 delete tempPacket;
                 continue;
             }
@@ -312,7 +324,7 @@ void core::Server::TCPOutEvent(epoll_event& event){
     //만약 bool 자료형을 사용한다면 쓰레드는 해당사실을 확인 하자마자 bool을 false로 바꾸고 작업을 수행해야 한다
     std::map<int, core::ClientInfo*>::iterator it = clientDictionary.find(event.data.fd);
     if(it==clientDictionary.end()){
-        std::cerr<<"packet receiver connection is already closed\n";
+        std::cerr<<"[TCP] packet receiver connection is already closed\n";
         return;
     }
 
@@ -324,12 +336,101 @@ void core::Server::TCPOutEvent(epoll_event& event){
     it->second->tcpinfo.wouldblock = false;
 }
 
-void core::Server::UDPLoop(){
+void core::Server::OnFirstConnect(int _clientid){
+    //Send ClientID to client by TCP
+    //tcp 첫 연결 시에 호출
+    core::Packet* _packet = new core::Packet();
+    _packet->packetID = 0x1000;
+    _packet->dataSize = sizeof(int32_t);
+    memcpy(_packet->data, &_clientid, sizeof(int32_t));
+    SendTCPPacket(_clientid, _packet);
+}
 
+void core::Server::UDPLoop(){
+    char buffer[UDP_BUF_SIZE];
+    sockaddr_in client_addr;
+    int client_addr_size = sizeof(client_addr);
+
+    while(1){
+        LOG("[UDP] loop start\n");
+        int packet_len = recvfrom(udpSocket, buffer, UDP_BUF_SIZE, 0, reinterpret_cast<sockaddr*>(&client_addr), (socklen_t*)&client_addr_size);
+        LOG("[UDP] received udp packet\n");
+
+        core::Packet* tempPacket = new core::Packet();
+        memcpy(&tempPacket->clientid, buffer, sizeof(int32_t)); //client library is required to add clientID at packet header
+        memcpy(&tempPacket->packetID, buffer+sizeof(int32_t), sizeof(uint16_t));
+        memcpy(&tempPacket->dataSize, buffer+sizeof(int32_t)+sizeof(uint16_t), sizeof(uint16_t));
+        if(packet_len < sizeof(int32_t)+sizeof(uint16_t)+sizeof(uint16_t)+tempPacket->dataSize){
+            std::cerr<<"[UDP] packet loss error\n";
+            delete tempPacket;
+            continue;
+        }
+
+        memcpy(&tempPacket->data[0],buffer+sizeof(int32_t)+sizeof(uint16_t)+sizeof(uint16_t), tempPacket->dataSize);
+
+        std::map<int, core::ClientInfo*>::iterator it = clientDictionary.find(tempPacket->clientid);
+        if(it==clientDictionary.end() || !it->second->udpinfo.taskque){
+            if(it==clientDictionary.end())
+                std::cerr<<"[UDP] cannot find clientinfo that obtains clientid\n";
+            else if(!it->second->udpinfo.taskque)
+                std::cerr<<"[UDP] None taskque error\n";
+
+            delete tempPacket;
+            continue;
+        }
+
+        //need to register udpinfo by tcp communication    
+        
+        //check if it matches with registered ip and port
+        if(it->second->tcpinfo.clientaddr.sin_addr.s_addr==client_addr.sin_addr.s_addr && it->second->tcpinfo.clientaddr.sin_port == client_addr.sin_port){
+            it->second->udpinfo.taskque->Push(tempPacket);
+        }
+        else{
+            delete tempPacket;
+            std::cerr<<"[UDP] client udp info(IP,PORT) mismatch with registered tcp info(IP,PORT)\n";
+        }
+    }   
 }
 
 void core::Server::UDPSend(){
+    while(1){
+        if(clientDictionary.empty())
+            continue;
 
+        for(auto it=clientDictionary.begin();it!=clientDictionary.end();it++){
+            if(it->second->udpinfo.sendque.IsEmpty())
+                continue;
+            
+            core::Packet* _packet;
+            it->second->udpinfo.sendque.Pop(_packet);
+
+            char* packetBytes = _packet->Serialize();
+            uint16_t packetSize = _packet->Length();
+            
+            int send_len = sendto(udpSocket, packetBytes,packetSize,0,reinterpret_cast<sockaddr*>(&it->second->tcpinfo.clientaddr),
+                sizeof(it->second->tcpinfo.clientaddr));
+            
+            LOG_ENDL("[UDP] send packet");
+            LOG_VAR(send_len);
+
+            delete packetBytes;
+        }
+        usleep(1);
+    }
+}
+
+void core::Server::SendUDPPacket(int clientid, core::Packet* _packet){
+    //pthread_mutex_lock(&server_mtx);
+    std::map<int, core::ClientInfo*>::iterator it = clientDictionary.find(clientid);
+    if(it==clientDictionary.end()){
+        std::cerr<<"[UDP] packet receiver connection is already closed\n";
+        delete _packet;
+        return;
+    }
+    
+    //try-catch
+    //if catch delete packet
+    it->second->udpinfo.sendque.Push(_packet);
 }
 
 core::Server::~Server(){
@@ -339,7 +440,6 @@ core::Server::~Server(){
     for(auto it=clientDictionary.begin();it!=clientDictionary.end();it++)
         delete it->second;
     clientDictionary.clear();
-
     //pthread_mutex_destroy(&server_mtx);
 }
 

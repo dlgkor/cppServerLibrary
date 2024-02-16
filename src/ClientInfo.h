@@ -24,6 +24,7 @@ namespace core{
         sockaddr_in clientaddr;
         core::SafeQueue<core::Packet*> *taskque;
         core::SafeQueue<core::Packet*> sendque;
+        //bool registered;
         UDPInfo(); //allocate sendque
         ~UDPInfo(); //free sendque
     };

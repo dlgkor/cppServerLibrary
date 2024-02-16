@@ -16,16 +16,18 @@ namespace core{
         //header
         //uint32_t start_code; //discard byte until it matches start code
         uint16_t packetID; //correspond to functionname
+        //tcp packet doesn't have clientid data
         uint16_t dataSize;
         bool recv_head;
 
         //body
         char data[MAX_DATA_SIZE]; 
         //uint32_t end_code; //if end code doesn't match discard packet
-        
+
+        int32_t clientid; //same as tcp socket fd        
         uint32_t readCur;
 
-        int clientid; //same as tcp socket fd
+        
     public:
         Packet();
         //function that parse char,int from data(readCur is used)

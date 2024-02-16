@@ -16,7 +16,7 @@
 #include"Debug.h"
 
 #define TCP_BUF_SIZE 1024
-
+#define UDP_BUF_SIZE 128
 
 namespace core{
     class Server{
@@ -33,8 +33,8 @@ namespace core{
 
         int epollfd;
 
-        core::SafeQueue<core::Packet*> *defaultTCPTaskQ;
-        core::SafeQueue<core::Packet*> *defaultUDPTaskQ;
+        core::SafeQueue<core::Packet*> *userTCPTaskQ;
+        core::SafeQueue<core::Packet*> *userUDPTaskQ;
 
         pthread_t tcpLoopThread;
         pthread_t tcpSendThread;
@@ -46,6 +46,7 @@ namespace core{
 
         int BindTCP(std::string, int);
         int BindUDP(std::string, int);
+        int Bind(std::string, int);
 
         int Listen(); //start listening(TCP)
         void TCPLoop(); //recv and push to queue(thread)
@@ -53,8 +54,10 @@ namespace core{
         void TCPSend(); //pop queue and send(thread)
         void SendTCPPacket(int, core::Packet*);
 
+        void OnFirstConnect(int);
+        
         void UDPLoop(); //recv and push to queue(thread)
-        void UDPEventHandler(epoll_event&);
+        //void UDPEventHandler(epoll_event&);
         void UDPSend(); //pop queue and send(thread)
         void SendUDPPacket(int, core::Packet*);
 

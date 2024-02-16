@@ -1,0 +1,27 @@
+ClientSide
+TCP Recv
+Header: 0x1000 (ClientIDPacket)
+Recv 4byte int clientID(used when sending udp packet)
+
+After this you can send and recv udp packets
+
+tcp packet(send by client) structure
+packetID(uint16_t)
+dataSize(uint16_t)
+data
+
+udp packet(send by client) structure
+clientid(int)
+packetID(uint16_t)
+dataSize(uint16_t)
+data
+
+tcp packet(recv by client) structure
+packetID(uint16_t)
+dataSize(uint16_t)
+data
+
+udp packet(recv by client) structure
+packetID(uint16_t)
+dataSize(uint16_t)
+data
