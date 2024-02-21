@@ -340,7 +340,7 @@ void core::Server::OnFirstConnect(int _clientid){
     //Send ClientID to client by TCP
     //tcp 첫 연결 시에 호출
     core::Packet* _packet = new core::Packet();
-    _packet->packetID = 0x1000;
+    _packet->packetID = 0xffff;
     _packet->dataSize = sizeof(int32_t);
     memcpy(_packet->data, &_clientid, sizeof(int32_t));
     SendTCPPacket(_clientid, _packet);
