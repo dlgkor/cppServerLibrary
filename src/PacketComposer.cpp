@@ -27,12 +27,12 @@ core::Packet* core::PacketComposer::Compose(){
     if(!tempPacket)
         tempPacket = new Packet();
     
-    if(!tempPacket->recv_head){
+    if(!(tempPacket->recv_head)){
         if(clipPacketSize - clipReadCur < 4)
             return nullptr;
 
-        memcpy(&tempPacket->packetID, clipPacket, 2);
-        memcpy(&tempPacket->dataSize, clipPacket + 2, 2);
+        memcpy(&tempPacket->packetID, clipPacket + clipReadCur, 2);
+        memcpy(&tempPacket->dataSize, clipPacket + clipReadCur + 2, 2);
         LOG_VAR(tempPacket->packetID);
         LOG_VAR(tempPacket->dataSize);
 
@@ -42,6 +42,10 @@ core::Packet* core::PacketComposer::Compose(){
     }
 
     LOG_VAR(tempPacket->dataSize);
+    if(tempPacket->dataSize > MAX_DATA_SIZE){
+        std::cerr << "packet data size bigger then MAX_DATA_SIZE\n";
+        return nullptr;
+    }
 
     if(clipPacketSize-clipReadCur < tempPacket->dataSize)
         return nullptr;

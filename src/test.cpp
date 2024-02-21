@@ -7,8 +7,8 @@
 //(cmd) wsl hostname -I
 
 //#define MYIP "127.0.0.1"
-#define MYIP "172.20.10.7"
-#define MYPORT 8888
+#define MYIP "172.20.35.175"
+#define MYPORT 8889
 //localhost에 포트번호 8888로 통일하니까 잘 된다
 //vscode가 자동으로 localhost 8888포트를 호스트와 통일해 준다
 //ufw 방화벽 내릴 필요 없음
@@ -44,12 +44,13 @@ int main(int argc, char* argv[]){
             id = mypacket->clientid;
         }
         delete mypacket;
-        
+        /*
         mypacket = new core::Packet();
         mypacket->packetID = 0x1001;
         strcpy(mypacket->data, hc);
         mypacket->dataSize = strlen(mypacket->data);
         myServer.SendUDPPacket(id, mypacket);
+        */
         usleep(1);
     }
 
