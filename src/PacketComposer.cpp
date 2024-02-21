@@ -5,6 +5,7 @@ core::PacketComposer::PacketComposer():tempPacket(nullptr),clipPacketSize(0),cli
 int core::PacketComposer::addClip(char* src, int srcSize){
     //Add to clip packet
     LOG_VAR(srcSize);
+    LOG_VAR(clipPacketSize);
     if(MAX_CLIP_SIZE < clipPacketSize + srcSize){
         std::cerr<<"ClipPacket size overflow error\n";
         return 0;
@@ -40,6 +41,8 @@ core::Packet* core::PacketComposer::Compose(){
         tempPacket->recv_head = true;
     }
 
+    LOG_VAR(tempPacket->dataSize);
+
     if(clipPacketSize-clipReadCur < tempPacket->dataSize)
         return nullptr;
 
@@ -55,9 +58,12 @@ core::Packet* core::PacketComposer::Compose(){
 
 void core::PacketComposer::ClearHandledData(){
     //버퍼 용량 넘어가지 않도록 버퍼 데이터를 앞으로 땡겨줌
+    if(clipReadCur == 0)
+        return;
 
     if(clipPacketSize-clipReadCur != 0)
         memmove(clipPacket, clipPacket+clipReadCur, clipPacketSize-clipReadCur); //copy using buffer
+    
     clipPacketSize -= clipReadCur;
     clipReadCur = 0;
 }

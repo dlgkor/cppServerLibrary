@@ -6,7 +6,8 @@
 //WSL2 IP
 //(cmd) wsl hostname -I
 
-#define MYIP "127.0.0.1"
+//#define MYIP "127.0.0.1"
+#define MYIP "172.20.35.196"
 #define MYPORT 8888
 //localhost에 포트번호 8888로 통일하니까 잘 된다
 //vscode가 자동으로 localhost 8888포트를 호스트와 통일해 준다
